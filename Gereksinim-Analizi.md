@@ -21,5 +21,5 @@
 
 # Gereksinim Dağılımları
 
-1. [Hilal Ayyildiz Gereksinimleri]()
-2. [Hatice Ezgi Orhan Gereksinimleri]()
+1. [Hilal Ayyildiz Gereksinimleri](Hilal-Ayyildiz/Hilal-Ayyildiz-Gereksinimler.md)
+2. [Hatice Ezgi Orhan Gereksinimleri](Ezgi-Orhan/Ezgi-Orhan-Gereksinimler.md)
