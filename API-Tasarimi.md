@@ -1,144 +1,243 @@
-# API Tasarımı - OpenAPI Specification Örneği
-
-**OpenAPI Spesifikasyon Dosyası:** [lamine.yaml](lamine.yaml)
-
-Bu doküman, OpenAPI Specification (OAS) 3.0 standardına göre hazırlanmış örnek bir API tasarımını içermektedir.
-
-## OpenAPI Specification
-```yaml
 openapi: 3.0.0
 info:
-  title: Müzik ve Akor Yönetim Sistemi API
-  description: Bu belge Hilal Ayyıldız ve Ezgi Orhan'ın gereksinimlerini içeren API tasarımıdır.
+  title: Music Chord Platform API
+  description: REST API for managing users, songs, chords, playlists and notes.
   version: 1.0.0
 
+servers:
+  - url: https://api.musicplatform.com
+
 paths:
-  # --- KULLANICI İŞLEMLERİ (Hilal Ayyıldız) ---
+
   /auth/register:
     post:
       summary: Kayıt Olma
-      tags: [Kimlik Doğrulama]
+      tags: [Auth]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [username, email, password]
-              properties:
-                username:
-                  type: string
-                  example: "muzik_sever"
-                email:
-                  type: string
-                  format: email
-                  example: "kullanici@example.com"
-                password:
-                  type: string
-                  format: password
-                  example: "GucluSifre123!"
+              $ref: '#/components/schemas/Register'
       responses:
         '201':
-          description: Kullanıcı başarıyla oluşturuldu.
+          description: Kullanıcı oluşturuldu
 
   /auth/login:
     post:
       summary: Giriş Yapma
-      tags: [Kimlik Doğrulama]
+      tags: [Auth]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [username, password]
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
+              $ref: '#/components/schemas/Login'
       responses:
         '200':
-          description: Giriş başarılı.
+          description: Giriş başarılı
 
   /auth/reset-password:
     post:
       summary: Şifre Yenileme
-      tags: [Kimlik Doğrulama]
+      tags: [Auth]
       responses:
         '200':
-          description: Yenileme bağlantısı gönderildi.
+          description: Şifre sıfırlama linki gönderildi
 
-  /user/profile:
+  /profile:
     put:
-      summary: Profil Güncelleme (Hilal Ayyıldız)
-      tags: [Kullanıcı]
+      summary: Profil Güncelleme
+      tags: [User]
       responses:
         '200':
-          description: Profil güncellendi.
+          description: Profil güncellendi
 
-  # --- ŞARKI YÖNETİMİ (Hilal Ayyıldız) ---
   /songs:
     get:
-      summary: Arama Yapma ve Popüler Şarkıları Görüntüleme
-      tags: [Şarkılar]
+      summary: Şarkı Arama
+      tags: [Songs]
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Şarkı listesi
+
     post:
       summary: Şarkı Ekleme
-      tags: [Şarkılar]
+      tags: [Songs]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Song'
+      responses:
+        '201':
+          description: Şarkı eklendi
+
+  /songs/popular:
+    get:
+      summary: Popüler Şarkıları Görüntüleme
+      tags: [Songs]
+      responses:
+        '200':
+          description: Popüler şarkı listesi
 
   /songs/{songId}:
     put:
       summary: Şarkı Düzenleme
-      tags: [Şarkılar]
+      tags: [Songs]
+      parameters:
+        - name: songId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Şarkı güncellendi
+
     delete:
       summary: Şarkı Silme
-      tags: [Şarkılar]
+      tags: [Songs]
+      parameters:
+        - name: songId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Şarkı silindi
 
-  # --- LİSTE VE PUANLAMA (Ezgi Orhan) ---
   /songs/{songId}/rate:
     post:
       summary: Şarkı Puanlama
-      tags: [Etkileşim]
+      tags: [Songs]
+      parameters:
+        - name: songId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+      responses:
+        '200':
+          description: Puan verildi
 
-  /playlists:
-    post:
-      summary: Liste Oluşturma
-      tags: [Listeler]
-    get:
-      summary: Listeleri Görüntüleme
-      tags: [Listeler]
-
-  /playlists/{playlistId}/items:
-    post:
-      summary: Listeye Şarkı Ekleme
-      tags: [Listeler]
-    patch:
-      summary: Liste Sırası Değiştirme
-      tags: [Listeler]
-
-  # --- AKOR VE NOTLAR (Ezgi Orhan) ---
   /songs/{songId}/transpose:
     post:
       summary: Ton Değiştirme (Transpoze)
-      tags: [Araçlar]
+      tags: [Chords]
+      responses:
+        '200':
+          description: Ton değiştirildi
 
-  /songs/{songId}/visualize:
+  /songs/{songId}/chords:
     get:
       summary: Akor Görselleştirici
-      tags: [Araçlar]
+      tags: [Chords]
+      responses:
+        '200':
+          description: Akorlar görüntülendi
 
   /songs/{songId}/simplify:
     post:
       summary: Akor Basitleştirme (AI)
-      tags: [Araçlar]
+      tags: [Chords]
+      responses:
+        '200':
+          description: Basitleştirilmiş akorlar
 
   /songs/{songId}/notes:
     post:
       summary: Not Ekleme
-      tags: [Notlar]
-  
-  /notes/{noteId}:
+      tags: [Notes]
+      responses:
+        '201':
+          description: Not eklendi
+
+  /songs/{songId}/notes/{noteId}:
     delete:
       summary: Not Silme
+      tags: [Notes]
+      parameters:
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Not silindi
 
-      tags: [Notlar]
+  /playlists:
+    post:
+      summary: Liste Oluşturma
+      tags: [Playlists]
+      responses:
+        '201':
+          description: Liste oluşturuldu
+
+  /playlists/{playlistId}/songs:
+    post:
+      summary: Listeye Şarkı Ekleme
+      tags: [Playlists]
+      parameters:
+        - name: playlistId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Şarkı listeye eklendi
+
+  /playlists/{playlistId}/reorder:
+    put:
+      summary: Liste Sırası Değiştirme
+      tags: [Playlists]
+      responses:
+        '200':
+          description: Liste sırası güncellendi
+
+components:
+  schemas:
+
+    Register:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    Song:
+      type: object
+      properties:
+        title:
+          type: string
+        artist:
+          type: string
+        chords:
+          type: string
