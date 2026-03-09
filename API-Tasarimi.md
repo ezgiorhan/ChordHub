@@ -183,7 +183,7 @@ paths:
           description: Şarkı sistemden kaldırıldı.
 
   # ==========================================
-  # REPERTOAR YÖNETİMİ (Ezgi Orhan)
+  # REPERTUVAR YÖNETİMİ (Ezgi Orhan)
   # ==========================================
   /api/playlists:
     post:
