@@ -1,15 +1,22 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: Müzik ve Akor Yönetim Sistemi API
-  description: Bu belge Hilal Ayyıldız ve Ezgi Orhan'ın gereksinimlerini içeren API tasarımıdır.
+  description: >
+    Yazılım Mühendisliği Projesi 3. Aşama - API Tasarımı. 
+    Bu doküman Hilal Ayyıldız ve Ezgi Orhan tarafından belirlenen gereksinimlerin 
+    RESTful API standartlarına göre tasarımını içerir.
   version: 1.0.0
 
+servers:
+  - url: https://api.muzikveakorprojesi.com/v1
+    description: Üretim Sunucusu
+
 paths:
-  # --- KULLANICI İŞLEMLERİ (Hilal Ayyıldız) ---
+  # --- HİLAL AYYILDIZ GEREKSİNİMLERİ ---
   /auth/register:
     post:
-      summary: Kayıt Olma
       tags: [Kimlik Doğrulama]
+      summary: Kayıt Olma
       requestBody:
         required: true
         content:
@@ -18,118 +25,222 @@ paths:
               type: object
               required: [username, email, password]
               properties:
-                username:
-                  type: string
-                  example: "muzik_sever"
-                email:
-                  type: string
-                  format: email
-                  example: "kullanici@example.com"
-                password:
-                  type: string
-                  format: password
-                  example: "GucluSifre123!"
+                username: { type: string, example: "hilal_ay" }
+                email: { type: string, format: email, example: "hilal@example.com" }
+                password: { type: string, format: password, example: "Sifre123!" }
       responses:
-        '201':
+        201:
           description: Kullanıcı başarıyla oluşturuldu.
+        400:
+          description: Geçersiz giriş verisi.
 
   /auth/login:
     post:
-      summary: Giriş Yapma
       tags: [Kimlik Doğrulama]
+      summary: Giriş Yapma
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [username, password]
               properties:
-                username:
-                  type: string
-                password:
-                  type: string
+                email: { type: string }
+                password: { type: string }
       responses:
-        '200':
-          description: Giriş başarılı.
+        200:
+          description: Giriş başarılı, token döndürüldü.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
 
-  /auth/reset-password:
-    post:
-      summary: Şifre Yenileme
-      tags: [Kimlik Doğrulama]
-      responses:
-        '200':
-          description: Yenileme bağlantısı gönderildi.
-
-  /user/profile:
-    put:
-      summary: Profil Güncelleme (Hilal Ayyıldız)
-      tags: [Kullanıcı]
-      responses:
-        '200':
-          description: Profil güncellendi.
-
-  # --- ŞARKI YÖNETİMİ (Hilal Ayyıldız) ---
   /songs:
     get:
-      summary: Arama Yapma ve Popüler Şarkıları Görüntüleme
-      tags: [Şarkılar]
+      tags: [Şarkı İşlemleri]
+      summary: Arama Yapma
+      parameters:
+        - name: q
+          in: query
+          description: Şarkı adı veya sanatçı ismi
+          schema: { type: string }
+      responses:
+        200:
+          description: Arama sonuçları listelendi.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Song'
     post:
+      tags: [Şarkı İşlemleri]
       summary: Şarkı Ekleme
-      tags: [Şarkılar]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SongInput'
+      responses:
+        201:
+          description: Şarkı başarıyla eklendi.
+
+  /songs/popular:
+    get:
+      tags: [Şarkı İşlemleri]
+      summary: Popüler Şarkıları Görüntüleme
+      responses:
+        200:
+          description: En popüler şarkı listesi.
 
   /songs/{songId}:
     put:
+      tags: [Şarkı İşlemleri]
       summary: Şarkı Düzenleme
-      tags: [Şarkılar]
+      parameters:
+        - name: songId
+          in: path
+          required: true
+          schema: { type: string }
     delete:
+      tags: [Şarkı İşlemleri]
       summary: Şarkı Silme
-      tags: [Şarkılar]
+      responses:
+        204:
+          description: Şarkı başarıyla silindi.
 
-  # --- LİSTE VE PUANLAMA (Ezgi Orhan) ---
+  # --- EZGİ ORHAN GEREKSİNİMLERİ ---
   /songs/{songId}/rate:
     post:
+      tags: [Etkileşimler]
       summary: Şarkı Puanlama
-      tags: [Etkileşim]
+      parameters:
+        - name: songId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+      responses:
+        200:
+          description: Puan kaydedildi.
 
   /playlists:
     post:
+      tags: [Listeler]
       summary: Liste Oluşturma
-      tags: [Listeler]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, example: "Favori Akorlarım" }
     get:
-      summary: Listeleri Görüntüleme
       tags: [Listeler]
+      summary: Kullanıcı Listelerini Görüntüleme
 
-  /playlists/{playlistId}/items:
+  /playlists/{playlistId}/songs:
     post:
+      tags: [Listeler]
       summary: Listeye Şarkı Ekleme
-      tags: [Listeler]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                songId: { type: string }
     patch:
-      summary: Liste Sırası Değiştirme
       tags: [Listeler]
+      summary: Liste Sırası Değiştirme
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                songId: { type: string }
+                newOrder: { type: integer }
 
-  # --- AKOR VE NOTLAR (Ezgi Orhan) ---
-  /songs/{songId}/transpose:
+  /tools/transpose:
     post:
+      tags: [Müzik Araçları]
       summary: Ton Değiştirme (Transpoze)
-      tags: [Araçlar]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                songId: { type: string }
+                semitones: { type: integer, example: 2 }
+      responses:
+        200:
+          description: Yeni tondaki akorlar döndürüldü.
 
-  /songs/{songId}/visualize:
-    get:
-      summary: Akor Görselleştirici
-      tags: [Araçlar]
-
-  /songs/{songId}/simplify:
+  /tools/simplify-ai:
     post:
+      tags: [Müzik Araçları]
       summary: Akor Basitleştirme (AI)
-      tags: [Araçlar]
+      description: Karmaşık akorları yapay zeka ile başlangıç seviyesine indirger.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                chordSequence: { type: string }
+      responses:
+        200:
+          description: Basitleştirilmiş akorlar döndürüldü.
 
-  /songs/{songId}/notes:
+  /notes:
     post:
-      summary: Not Ekleme
       tags: [Notlar]
-  
+      summary: Not Ekleme
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                songId: { type: string }
+                content: { type: string }
   /notes/{noteId}:
     delete:
-      summary: Not Silme
       tags: [Notlar]
+      summary: Not Silme
+
+components:
+  schemas:
+    Song:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        artist: { type: string }
+        chords: { type: string }
+        averageRating: { type: number }
+
+    SongInput:
+      type: object
+      required: [title, artist, chords]
+      properties:
+        title: { type: string }
+        artist: { type: string }
+        chords: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        email: { type: string }
