@@ -1,243 +1,161 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: Music Chord Platform API
-  description: REST API for managing users, songs, chords, playlists and notes.
+  title: Repertoar & Akor Yönetim API
+  description: Müzisyenlerin şarkı ekleyebildiği, AI ile akor basitleştirebildiği ve kişisel repertuarlarını yönetebildiği entegre platform.
   version: 1.0.0
+  contact:
+    name: Proje Ekibi (Hilal & Ezgi)
 
 servers:
-  - url: https://api.musicplatform.com
+  - url: http://localhost:5000/api/v1
+    description: Yerel Geliştirme Sunucusu
+  - url: https://api.repertoireapp.com/v1
+    description: Üretim Sunucusu
+
+tags:
+  - name: Kullanıcı Yönetimi
+    description: Kayıt, giriş ve profil güncellemeleri (Hilal Ayyıldız)
+  - name: Şarkı & İçerik Yönetimi
+    description: Şarkı ekleme, arama ve düzenleme işlemleri (Hilal Ayyıldız)
+  - name: Liste & Repertoar Yönetimi
+    description: Kullanıcı çalma listeleri ve şarkı sıralama (Ezgi Orhan)
+  - name: Akor & AI Araçları
+    description: Transpoze, Görselleştirme ve AI Akor Basitleştirme (Ezgi Orhan)
+
+security:
+  - BearerAuth: []
 
 paths:
-
+  # ==========================================
+  # HİLAL AYYILDIZ'IN GÖREVLERİ
+  # ==========================================
   /auth/register:
     post:
-      summary: Kayıt Olma
-      tags: [Auth]
+      tags: [Kullanıcı Yönetimi]
+      summary: Yeni Kullanıcı Kaydı
+      description: Sisteme e-posta ve şifre ile yeni üye kaydı yapar.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Register'
+              $ref: '#/components/schemas/UserInput'
       responses:
         '201':
-          description: Kullanıcı oluşturuldu
-
-  /auth/login:
-    post:
-      summary: Giriş Yapma
-      tags: [Auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Login'
-      responses:
-        '200':
-          description: Giriş başarılı
-
-  /auth/reset-password:
-    post:
-      summary: Şifre Yenileme
-      tags: [Auth]
-      responses:
-        '200':
-          description: Şifre sıfırlama linki gönderildi
-
-  /profile:
-    put:
-      summary: Profil Güncelleme
-      tags: [User]
-      responses:
-        '200':
-          description: Profil güncellendi
+          description: Kayıt başarılı.
+        '400':
+          description: Hatalı veri girişi.
 
   /songs:
     get:
-      summary: Şarkı Arama
-      tags: [Songs]
+      tags: [Şarkı & İçerik Yönetimi]
+      summary: Şarkı Arama ve Listeleme
       parameters:
         - name: query
           in: query
+          description: Şarkı adı veya sanatçı ile arama
           schema:
             type: string
       responses:
         '200':
-          description: Şarkı listesi
-
+          description: Şarkılar başarıyla getirildi.
     post:
-      summary: Şarkı Ekleme
-      tags: [Songs]
+      tags: [Şarkı & İçerik Yönetimi]
+      summary: Yeni Şarkı Ekleme
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Song'
+              $ref: '#/components/schemas/SongInput'
       responses:
         '201':
-          description: Şarkı eklendi
+          description: Şarkı sisteme eklendi.
 
-  /songs/popular:
-    get:
-      summary: Popüler Şarkıları Görüntüleme
-      tags: [Songs]
-      responses:
-        '200':
-          description: Popüler şarkı listesi
-
-  /songs/{songId}:
-    put:
-      summary: Şarkı Düzenleme
-      tags: [Songs]
-      parameters:
-        - name: songId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Şarkı güncellendi
-
-    delete:
-      summary: Şarkı Silme
-      tags: [Songs]
-      parameters:
-        - name: songId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Şarkı silindi
-
-  /songs/{songId}/rate:
+  # ==========================================
+  # EZGİ ORHAN'IN GÖREVLERİ
+  # ==========================================
+  /songs/{songId}/simplify:
     post:
-      summary: Şarkı Puanlama
-      tags: [Songs]
+      tags: [Akor & AI Araçları]
+      summary: Akor Basitleştirme [YAPAY ZEKA]
+      description: Karmaşık akor dizilerini AI analizi ile çalması kolay versiyonlara dönüştürür.
       parameters:
         - name: songId
           in: path
           required: true
           schema:
             type: integer
+      responses:
+        '200':
+          description: Basitleştirilmiş akorlar başarıyla üretildi.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  originalChords: { type: string }
+                  simplifiedChords: { type: string }
+                  difficultyLevel: { type: string, example: "Kolay" }
+
+  /playlists:
+    post:
+      tags: [Liste & Repertoar Yönetimi]
+      summary: Yeni Repertoar Listesi Oluşturma
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, example: "Haftalık Sahne Listesi" }
+      responses:
+        '201':
+          description: Liste oluşturuldu.
+
+  /songs/{songId}/transpose:
+    post:
+      tags: [Akor & AI Araçları]
+      summary: Akor Transpoze Etme
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                rating:
-                  type: integer
+                semitones: { type: integer, example: 2 }
       responses:
         '200':
-          description: Puan verildi
-
-  /songs/{songId}/transpose:
-    post:
-      summary: Ton Değiştirme (Transpoze)
-      tags: [Chords]
-      responses:
-        '200':
-          description: Ton değiştirildi
-
-  /songs/{songId}/chords:
-    get:
-      summary: Akor Görselleştirici
-      tags: [Chords]
-      responses:
-        '200':
-          description: Akorlar görüntülendi
-
-  /songs/{songId}/simplify:
-    post:
-      summary: Akor Basitleştirme (AI)
-      tags: [Chords]
-      responses:
-        '200':
-          description: Basitleştirilmiş akorlar
-
-  /songs/{songId}/notes:
-    post:
-      summary: Not Ekleme
-      tags: [Notes]
-      responses:
-        '201':
-          description: Not eklendi
-
-  /songs/{songId}/notes/{noteId}:
-    delete:
-      summary: Not Silme
-      tags: [Notes]
-      parameters:
-        - name: noteId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Not silindi
-
-  /playlists:
-    post:
-      summary: Liste Oluşturma
-      tags: [Playlists]
-      responses:
-        '201':
-          description: Liste oluşturuldu
-
-  /playlists/{playlistId}/songs:
-    post:
-      summary: Listeye Şarkı Ekleme
-      tags: [Playlists]
-      parameters:
-        - name: playlistId
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Şarkı listeye eklendi
-
-  /playlists/{playlistId}/reorder:
-    put:
-      summary: Liste Sırası Değiştirme
-      tags: [Playlists]
-      responses:
-        '200':
-          description: Liste sırası güncellendi
+          description: Yeni tondaki akorlar döndürüldü.
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
+    UserInput:
+      type: object
+      required: [username, email, password]
+      properties:
+        username: { type: string, example: "ozan_muzik" }
+        email: { type: string, format: email, example: "ozan@muzik.com" }
+        password: { type: string, format: password, example: "GucluSifre123" }
 
-    Register:
+    SongInput:
+      type: object
+      required: [title, artist, content]
+      properties:
+        title: { type: string, example: "Tamirci Çırağı" }
+        artist: { type: string, example: "Cem Karaca" }
+        content: { type: string, description: "Sözler ve akorlar bir arada" }
+        category: { type: string, example: "Anadolu Rock" }
+
+    Error:
       type: object
       properties:
-        username:
-          type: string
-        email:
-          type: string
-        password:
-          type: string
-
-    Login:
-      type: object
-      properties:
-        email:
-          type: string
-        password:
-          type: string
-
-    Song:
-      type: object
-      properties:
-        title:
-          type: string
-        artist:
-          type: string
-        chords:
-          type: string
+        code: { type: integer }
+        message: { type: string }
