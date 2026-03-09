@@ -1,3 +1,12 @@
+# API Tasarımı - OpenAPI Specification Örneği
+
+**OpenAPI Spesifikasyon Dosyası:** [lamine.yaml](lamine.yaml)
+
+Bu doküman, OpenAPI Specification (OAS) 3.0 standardına göre hazırlanmış örnek bir API tasarımını içermektedir.
+
+## OpenAPI Specification
+
+```yaml
 openapi: 3.0.3
 info:
   title: Müzik ve Akor Yönetim Sistemi API
