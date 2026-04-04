@@ -24,9 +24,27 @@ function transposeChord(chord: string, st: number, useFlats: boolean): string {
   return scale[((idx + st) % 12 + 12) % 12] + m[2];
 }
 
-interface Song { id: string; title: string; artist: string; lyrics: string; chords: string; key: string; youtube?: string; createdByUsername?: string; }
-interface Playlist { id: string; name: string; }
-interface Note { id: string; content: string; songId: string; }
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  lyrics: string;
+  chords: string;
+  key: string;
+  youtube?: string;
+  createdByUsername?: string;
+}
+
+interface Playlist {
+  id: string;
+  name: string;
+}
+
+interface Note {
+  id: string;
+  content: string;
+  songId: string;
+}
 
 const CHORD_COLORS: Record<string, string> = {
   m: "bg-rose-500/20 text-rose-300 border-rose-500/30",
@@ -71,6 +89,7 @@ export default function Home() {
   const [mobileView, setMobileView] = useState<"list"|"detail">("list");
 
   useEffect(() => {
+    if (!loading && !user) router.push("/auth");
   }, [user, loading, router]);
 
   useEffect(() => {
@@ -81,22 +100,41 @@ export default function Home() {
     if (selectedSong && user) loadNotes(selectedSong.id);
   }, [selectedSong]);
 
-  const loadSongs = async () => {};
-  const addSong = async (e: React.FormEvent) => { e.preventDefault(); };
-  const deleteSong = async (songId: string) => {};
+  const loadSongs = async () => {
+    const q = query(collection(db, "songs"), orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() } as Song)));
+  };
+
+  const addSong = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const userDoc = await getDoc(doc(db, "users", user!.uid));
+    const username = userDoc.data()?.username || user!.email?.split("@")[0];
+    await addDoc(collection(db, "songs"), {
+      ...form, createdBy: user!.uid, createdByUsername: username, createdAt: serverTimestamp(),
+    });
+    setForm({ title:"", artist:"", lyrics:"", chords:"", key:"Am", youtube:"" });
+    setShowForm(false);
+    loadSongs();
+  };
+
+  const deleteSong = async (songId: string) => {
+    await deleteDoc(doc(db, "songs", songId));
+    if (selectedSong?.id === songId) { setSelectedSong(null); setMobileView("list"); }
+    loadSongs();
+  };
 
   const loadPlaylists = async () => {
-    if(!user) return;
-    const q = query(collection(db, "playlists"), where("createdBy", "==", user.uid), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "playlists"), where("createdBy", "==", user!.uid), orderBy("createdAt", "desc"));
     const snap = await getDocs(q);
     setPlaylists(snap.docs.map(d => ({ id: d.id, ...d.data() } as Playlist)));
   };
 
   const addPlaylist = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!playlistName.trim() || !user) return;
+    if (!playlistName.trim()) return;
     await addDoc(collection(db, "playlists"), {
-      name: playlistName, createdBy: user.uid, createdAt: serverTimestamp(), songIds: [],
+      name: playlistName, createdBy: user!.uid, createdAt: serverTimestamp(), songIds: [],
     });
     setPlaylistName("");
     setShowPlaylistForm(false);
@@ -115,7 +153,8 @@ export default function Home() {
     const q = query(collection(db, "playlist_songs"), where("playlistId", "==", playlist.id));
     const snap = await getDocs(q);
     const songIds = snap.docs.map(d => (d.data() as any).songId);
-    const allSongsList = [...songs];
+    const allSongs = await getDocs(query(collection(db, "songs"), orderBy("createdAt", "desc")));
+    const allSongsList = allSongs.docs.map(d => ({ id: d.id, ...d.data() } as Song));
     setPlaylistSongs(allSongsList.filter(s => songIds.includes(s.id)));
     setSelectedSong(null);
     setMobileView("detail");
@@ -127,16 +166,15 @@ export default function Home() {
   };
 
   const loadNotes = async (songId: string) => {
-    if(!user) return;
-    const q = query(collection(db, "notes"), where("songId", "==", songId), where("userId", "==", user.uid));
+    const q = query(collection(db, "notes"), where("songId", "==", songId), where("userId", "==", user!.uid));
     const snap = await getDocs(q);
     setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() } as Note)));
   };
 
   const addNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNote.trim() || !selectedSong || !user) return;
-    await addDoc(collection(db, "notes"), { content: newNote, songId: selectedSong.id, userId: user.uid, createdAt: serverTimestamp() });
+    if (!newNote.trim() || !selectedSong) return;
+    await addDoc(collection(db, "notes"), { content: newNote, songId: selectedSong.id, userId: user!.uid, createdAt: serverTimestamp() });
     setNewNote("");
     loadNotes(selectedSong.id);
   };
@@ -146,7 +184,10 @@ export default function Home() {
     if (selectedSong) loadNotes(selectedSong.id);
   };
 
-  const filteredSongs = songs;
+  const filteredSongs = songs.filter(song =>
+    song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const currentChords = selectedSong
     ? selectedSong.chords.split(",").map(c => transposeChord(c.trim(), semitones, false))
@@ -190,6 +231,42 @@ export default function Home() {
 
       {activeTab === "songs" && (
         <>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">🔍</span>
+            <input placeholder="Ara..." value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-900 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all" />
+          </div>
+
+          <button onClick={() => setShowForm(!showForm)}
+            className="w-full py-2.5 rounded-xl border border-dashed border-white/10 text-gray-500 hover:border-indigo-500/50 hover:text-indigo-400 text-sm transition-all flex items-center justify-center gap-2">
+            <span className="text-lg">+</span> Şarkı Ekle
+          </button>
+
+          {showForm && (
+            <form onSubmit={addSong} className="bg-gray-900 rounded-xl border border-white/10 p-4 flex flex-col gap-2.5">
+              {[
+                { placeholder: "Başlık", key: "title", required: true },
+                { placeholder: "Sanatçı", key: "artist", required: true },
+                { placeholder: "Ton (Am, G...)", key: "key", required: false },
+                { placeholder: "Akorlar (Am,F,C,G)", key: "chords", required: false },
+                { placeholder: "YouTube linki", key: "youtube", required: false },
+              ].map(f => (
+                <input key={f.key} placeholder={f.placeholder} required={f.required}
+                  value={(form as any)[f.key]}
+                  onChange={e => setForm({...form, [f.key]: e.target.value})}
+                  className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all" />
+              ))}
+              <textarea placeholder="Şarkı sözleri" value={form.lyrics}
+                onChange={e => setForm({...form, lyrics: e.target.value})}
+                rows={3} className="bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all resize-none" />
+              <button type="submit"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg py-2 text-sm font-medium transition-colors">
+                Kaydet
+              </button>
+            </form>
+          )}
+
           <div className="flex flex-col gap-2 overflow-y-auto">
             {filteredSongs.map(song => (
               <button key={song.id}
@@ -210,10 +287,20 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className="text-xs bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">{song.key}</span>
+                    {isAdmin && (
+                      <span onClick={(e) => { e.stopPropagation(); deleteSong(song.id); }}
+                        className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-all text-xs">✕</span>
+                    )}
                   </div>
                 </div>
               </button>
             ))}
+            {filteredSongs.length === 0 && (
+              <div className="text-center py-12 text-gray-600">
+                <div className="text-3xl mb-2">🎵</div>
+                <p className="text-sm">Şarkı bulunamadı</p>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -252,6 +339,12 @@ export default function Home() {
                 </div>
               </button>
             ))}
+            {playlists.length === 0 && (
+              <div className="text-center py-12 text-gray-600">
+                <div className="text-3xl mb-2">📋</div>
+                <p className="text-sm">Henüz liste yok</p>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -271,13 +364,17 @@ export default function Home() {
             <h2 className="text-xl md:text-2xl font-bold text-gray-100">{selectedPlaylist.name}</h2>
           </div>
           <div className="flex flex-col gap-2">
-            {playlistSongs.map(song => (
-              <button key={song.id} onClick={() => handleSongSelect(song)}
-                className="text-left p-4 rounded-xl border border-white/5 bg-gray-800/50 hover:border-indigo-500/30 hover:bg-gray-800 transition-all">
-                <p className="font-medium text-gray-200">{song.title}</p>
-                <p className="text-sm text-gray-500">{song.artist} · {song.key}</p>
-              </button>
-            ))}
+            {playlistSongs.length === 0 ? (
+              <p className="text-gray-600 text-sm">Bu listede henüz şarkı yok</p>
+            ) : (
+              playlistSongs.map(song => (
+                <button key={song.id} onClick={() => handleSongSelect(song)}
+                  className="text-left p-4 rounded-xl border border-white/5 bg-gray-800/50 hover:border-indigo-500/30 hover:bg-gray-800 transition-all">
+                  <p className="font-medium text-gray-200">{song.title}</p>
+                  <p className="text-sm text-gray-500">{song.artist} · {song.key}</p>
+                </button>
+              ))
+            )}
           </div>
         </div>
       ) : selectedSong ? (
@@ -291,6 +388,9 @@ export default function Home() {
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-100 mb-1">{selectedSong.title}</h2>
                 <p className="text-gray-400 text-base md:text-lg">{selectedSong.artist}</p>
+                {selectedSong.createdByUsername && (
+                  <p className="text-xs text-gray-600 mt-1">@{selectedSong.createdByUsername} tarafından eklendi</p>
+                )}
               </div>
               <button onClick={() => setShowAddToPlaylist(!showAddToPlaylist)}
                 className="text-xs bg-white/5 hover:bg-white/10 text-gray-400 hover:text-gray-200 px-3 py-2 rounded-lg border border-white/10 transition-all flex-shrink-0">
@@ -300,6 +400,7 @@ export default function Home() {
 
             {showAddToPlaylist && (
               <div className="mt-4 p-4 bg-gray-800/50 rounded-xl border border-white/10">
+                <p className="text-xs text-gray-500 mb-2">Hangi listeye ekleyelim?</p>
                 <div className="flex flex-col gap-1">
                   {playlists.map(pl => (
                     <button key={pl.id}
@@ -308,8 +409,17 @@ export default function Home() {
                       🎵 {pl.name}
                     </button>
                   ))}
+                  {playlists.length === 0 && <p className="text-xs text-gray-600">Önce liste oluştur</p>}
                 </div>
               </div>
+            )}
+
+            {selectedSong.youtube && (
+              <a href={selectedSong.youtube} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-4 text-sm text-red-400 hover:text-red-300 transition-colors">
+                <span className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs">▶</span>
+                YouTube'da Dinle
+              </a>
             )}
           </div>
 
@@ -361,6 +471,7 @@ export default function Home() {
                       className="text-gray-700 hover:text-red-400 transition-colors ml-3 flex-shrink-0 text-xs">✕</button>
                   </div>
                 ))}
+                {notes.length === 0 && <p className="text-xs text-gray-700">Henüz not yok</p>}
               </div>
             </div>
           </div>
