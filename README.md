@@ -27,7 +27,7 @@ Dijital Repertuvar
 ## Proje Linkleri
 
 - **REST API Adresi:** 
-- **Web Frontend Adresi:** 
+- **Web Frontend Adresi:** https://chordhub2.vercel.app/auth
 
 ---
 
